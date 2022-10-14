@@ -49,9 +49,10 @@ class BiasedMHA(MHA):
         v = self._split_head(self.fc_v(v, training=training))  # [N H L d]
 
         soft_attention = tf.einsum('nhgd,nhld->nhgl', q, k)
-        soft_attention = tf.nn.softmax(soft_attention, axis=-1)
+        # soft_attention = tf.nn.softmax(soft_attention, axis=-1)
 
         biased_attention = (soft_attention + bias) / self.temp
+        biased_attention = tf.nn.softmax(biased_attention, axis=-1)
         agg = tf.einsum('nhgl,nhld->nhgd', biased_attention, v)
         agg = tf.transpose(agg, [0, 2, 1, 3])  # [N G H d]
         agg = tf.reshape(agg, [batch_size, group_size, -1])  # [N G D] H*d=D
