@@ -3,7 +3,7 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 import tensorflow as tf
 from tensorflow import keras
 import typing
-import numpy as np
+from layer.transformer import MHA, hard_ste_attention, positional_encoding, MLP
 
 # as per the IDE resolving bug
 if typing.TYPE_CHECKING:
@@ -11,77 +11,7 @@ if typing.TYPE_CHECKING:
     from keras.api._v2 import keras
 
 
-def _hard_attention(s):
-    """
-    One-hot attention + STE
-    :param s: [N H G L]
-    :return: [N H G L]
-    """
-    depth = tf.shape(s)[-2]
-    assignment = tf.argmax(s, axis=-1)  # [N H L]
-
-    hard_attention = tf.one_hot(assignment, depth=depth)  # [N H L G]
-    hard_attention = tf.transpose(hard_attention, [0, 1, 3, 2])  # [N H G L]
-
-    rslt = tf.stop_gradient(hard_attention) + s - tf.stop_gradient(s)
-    return rslt
-
-
-def _get_angles(pos, i, d_model):
-    angle_rates = 1 / np.power(10000, (2 * (i // 2)) / np.float32(d_model))
-    return pos * angle_rates
-
-
-def _positional_encoding(position, d_model):
-    angle_rads = _get_angles(np.arange(position)[:, np.newaxis],
-                             np.arange(d_model)[np.newaxis, :],
-                             d_model)
-
-    #
-    angle_rads[:, 0::2] = np.sin(angle_rads[:, 0::2])
-
-    #
-    angle_rads[:, 1::2] = np.cos(angle_rads[:, 1::2])
-
-    pos_encoding = angle_rads[np.newaxis, ...]
-
-    return tf.cast(pos_encoding, dtype=tf.float32)
-
-
-class _MLP(keras.Model):
-    def __init__(self, d_model, drop_rate, out_dim, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.net = keras.Sequential([
-            keras.layers.Dense(d_model, activation=keras.activations.gelu),
-            keras.layers.Dropout(drop_rate),
-            keras.layers.Dense(out_dim)
-        ])
-
-    def call(self, inputs, training=None, mask=None):
-        return self.net(inputs, training=training)
-
-
-class HardSetAttention(keras.Model):
-    def __init__(self, d_model, head=1, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.head = head
-        self.d_model = d_model
-        self.fc_q = keras.layers.Dense(d_model)
-        self.fc_k = keras.layers.Dense(d_model)
-        self.fc_v = keras.layers.Dense(d_model)
-        self.d_head = d_model // head
-        self.fc_out = keras.layers.Dense(d_model)
-        self.temp = float(self.d_head) ** 0.5
-
-    def _split_head(self, x):
-        """
-
-        :param x: [N L D]
-        :return:
-        """
-        batch_size = tf.shape(x)[0]
-        rslt = tf.reshape(x, [batch_size, -1, self.head, self.d_head])
-        return tf.transpose(rslt, perm=[0, 2, 1, 3])
+class HardSetAttention(MHA):
 
     # noinspection PyMethodOverriding
     def call(self, q, k, v, reduced_query=False, training=None, mask=None):
@@ -93,7 +23,7 @@ class HardSetAttention(keras.Model):
         :param reduced_query: True-> q~[G D], False-> q~[N G D]
         :param training:
         :param mask:
-        :return:
+        :return: [N G D] [N H G L] [N H G L]
         """
 
         batch_size = tf.shape(v)[0]
@@ -112,7 +42,7 @@ class HardSetAttention(keras.Model):
 
         soft_attention = tf.nn.softmax(soft_attention, axis=-1)
 
-        hard_attention = _hard_attention(soft_attention)
+        hard_attention = hard_ste_attention(soft_attention)
 
         agg = tf.einsum('nhgl,nhld->nhgd', hard_attention, v)
         agg = tf.transpose(agg, [0, 2, 1, 3])  # [N G H d]
@@ -134,7 +64,8 @@ class GroupTransformer(keras.Model):
         :param head: number of heads
         :param drop_rate: the KEEP RATE of dropout
         :param input_projection: if the input needs an additional projection
-        :param sinusoidal_pos:
+        :param sinusoidal_pos: only valid when input_projection=True
+        :param top_mlp:
         :param args:
         :param kwargs:
         """
@@ -146,20 +77,25 @@ class GroupTransformer(keras.Model):
         self.input_projection = input_projection
         self.group_attention = HardSetAttention(d_model, head=head)
         self.group_emb = tf.Variable(keras.initializers.TruncatedNormal()([group_size, d_model]), trainable=True)
-        self.pos_emb = _positional_encoding(seq_length, d_model) if sinusoidal_pos else tf.Variable(
-            keras.initializers.TruncatedNormal()([seq_length, d_model]), trainable=True)
 
-        self.fc_in = keras.layers.Dense(d_model) if input_projection else None
+        if input_projection:
+            self.pos_emb = positional_encoding(seq_length, d_model) if sinusoidal_pos else tf.Variable(
+                keras.initializers.TruncatedNormal()([seq_length, d_model]), trainable=True)
+            self.fc_in = keras.layers.Dense(d_model)
+        else:
+            self.fc_in = None
+            self.pos_emb = None
+
         self.drop = keras.layers.Dropout(drop_rate)
         if top_mlp:
-            self.top_mlp = _MLP(d_model, drop_rate, d_model)
+            self.top_mlp = MLP(d_model, drop_rate, d_model)
         else:
             self.top_mlp = None
 
     def call(self, x, training=None, mask=None):
         if self.input_projection:
             x = self.fc_in(x, training=training)
-        x += self.pos_emb
+            x += self.pos_emb
 
         group_feat, soft_attention, hard_attention = self.group_attention(self.group_emb, x, x, reduced_query=True,
                                                                           training=training)
@@ -173,4 +109,3 @@ class GroupTransformer(keras.Model):
         else:
             rslt = group_feat
         return rslt, soft_attention, hard_attention
-
