@@ -110,8 +110,8 @@ class GroupTransformer(keras.Model):
 
         group_feat = self.drop(group_feat)
 
-        if self.top_mlp is not None:
-            rslt = tf.nn.l2_normalize(group_feat + self.top_mlp(group_feat, training=training), axis=-1)
+        if self.mlp is not None:
+            rslt = tf.nn.l2_normalize(group_feat + self.mlp(group_feat, training=training), axis=-1)
         else:
             rslt = group_feat
 

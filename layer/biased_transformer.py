@@ -85,7 +85,7 @@ class BiasedTransformer(keras.Model):
         self.input_projection = input_projection
 
         self.group_transform = GroupTransformer(d_model, group_size, seq_length, 1, drop_rate,
-                                                input_projection=False, sinusoidal_pos=False, top_mlp=False)
+                                                input_projection=False, sinusoidal_pos=False, mlp=False)
 
         self.biased_mha = BiasedMHA(d_model, head)
         if input_projection:
