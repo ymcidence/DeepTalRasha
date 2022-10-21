@@ -18,7 +18,7 @@ def hard_ste_attention(s):
     :return: [N H G L]
     """
     depth = tf.shape(s)[-2]
-    assignment = tf.argmax(s, axis=-1)  # [N H L]
+    assignment = tf.argmax(s, axis=-2)  # [N H L]
 
     hard_attention = tf.one_hot(assignment, depth=depth)  # [N H L G]
     hard_attention = tf.transpose(hard_attention, [0, 1, 3, 2])  # [N H G L]
