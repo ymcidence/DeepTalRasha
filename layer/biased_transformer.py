@@ -15,13 +15,13 @@ if typing.TYPE_CHECKING:
 def dot_group_bias(q_group, k_group, group_emb):
     """
 
-    :param q_group: [N H L1 G]
-    :param k_group: [N H L2 G]
+    :param q_group: [N H G L1]
+    :param k_group: [N H G L2]
     :param group_emb: [G D]
     :return: [N H L1 L2]
     """
-    q = tf.einsum('nhlg,gd->nhld', q_group, group_emb)
-    k = tf.einsum('nhlg,gd->nhld', k_group, group_emb)
+    q = tf.einsum('nhgl,gd->nhld', q_group, group_emb)
+    k = tf.einsum('nhgl,gd->nhld', k_group, group_emb)
 
     bias = tf.einsum('nhld,nhsd->nhls', q, k)
 
@@ -134,8 +134,8 @@ class BiasedTransformer(keras.Model):
         self_bias = dot_group_bias(hard_1, hard_1, self.group_transform.group_emb)  # [N 1 L L]
         cross_bias = dot_group_bias(hard_1, hard_2, self.group_transform.group_emb)  # [N 1 L L]
 
-        self_reference = self.biased_mha(self_q, self_kv, self_kv, self_bias, training=training)
-        cross_reference = self.biased_mha(cross_q, cross_kv, cross_kv, cross_bias, training=training)
+        self_reference, _ = self.biased_mha(self_q, self_kv, self_kv, self_bias, training=training)
+        cross_reference, _ = self.biased_mha(cross_q, cross_kv, cross_kv, cross_bias, training=training)
 
         out_feat = self_reference + cross_reference
         out_feat = self.drop(out_feat)
