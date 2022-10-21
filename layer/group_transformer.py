@@ -55,7 +55,7 @@ class HardSetAttention(MHA):
 
 class GroupTransformer(keras.Model):
     def __init__(self, d_model, group_size, seq_length, head=1, drop_rate=.9, input_projection=True,
-                 sinusoidal_pos=False, top_mlp=True, *args, **kwargs):
+                 sinusoidal_pos=False, mlp=False, top_size=3, *args, **kwargs):
         """
 
         :param d_model: feature dim
@@ -65,7 +65,8 @@ class GroupTransformer(keras.Model):
         :param drop_rate: the KEEP RATE of dropout
         :param input_projection: if the input needs an additional projection
         :param sinusoidal_pos: only valid when input_projection=True
-        :param top_mlp:
+        :param mlp: if an MLP is needed on the top of attention
+        :param top_size:
         :param args:
         :param kwargs:
         """
@@ -87,10 +88,15 @@ class GroupTransformer(keras.Model):
             self.pos_emb = None
 
         self.drop = keras.layers.Dropout(drop_rate)
-        if top_mlp:
-            self.top_mlp = MLP(d_model, drop_rate, d_model)
+        if mlp:
+            self.mlp = MLP(d_model, drop_rate, top_size)
         else:
-            self.top_mlp = None
+            self.mlp = None
+
+        if top_size > 0:
+            self.fc_top = keras.layers.Dense(top_size)
+        else:
+            self.fc_top = None
 
     def call(self, x, training=None, mask=None):
         if self.input_projection:
@@ -108,4 +114,7 @@ class GroupTransformer(keras.Model):
             rslt = tf.nn.l2_normalize(group_feat + self.top_mlp(group_feat, training=training), axis=-1)
         else:
             rslt = group_feat
+
+        if self.fc_top is not None:
+            rslt = self.fc_top(rslt, training=training)
         return rslt, soft_attention, hard_attention
