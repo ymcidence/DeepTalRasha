@@ -3,7 +3,7 @@ from __future__ import absolute_import, print_function, division, unicode_litera
 import tensorflow as tf
 from tensorflow import keras
 import typing
-from layer.transformer import MHA, hard_ste_attention, positional_encoding, MLP
+from talrasha.layer.transformer import MHA, hard_ste_attention, positional_encoding, MLP
 
 # as per the IDE resolving bug
 if typing.TYPE_CHECKING:

@@ -13,10 +13,36 @@ if typing.TYPE_CHECKING:
 
 
 class _DefaultMNISTNet(keras.layers.Layer):
+    """
+    A diffusion-only MNIST network, modelling p(x(t-1)|x(t)).
+
+    """
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
         self.fc_t = keras.layers.Dense(512, activation=tf.nn.swish)
+        self.fc_i = keras.layers.Dense(512, activation=tf.nn.swish)
+
+        self.net = keras.Sequential([
+            keras.layers.Dense(28 * 28, activation=tf.nn.swish),
+            keras.layers.Dense(28 * 28)
+        ])
+
+    # noinspection PyMethodOverriding
+    def call(self, x, step_emb, training=True, *args, **kwargs):
+        """
+
+        Args:
+            x:
+            step_emb:
+            training:
+            *args:
+            **kwargs:
+
+        Returns:
+
+        """
+        x = self.fc_i
 
 
 class BasicDiffusion(keras.Model):
@@ -29,11 +55,12 @@ class BasicDiffusion(keras.Model):
                  *args, **kwargs):
         """
 
-        :param total_step:
-        :param beta:
-        :param backbone:
-        :param args:
-        :param kwargs:
+        Args:
+            total_step:
+            beta:
+            backbone:
+            *args:
+            **kwargs:
         """
         super().__init__(*args, **kwargs)
         self.beta = np.linspace(1e-4, 0.02, total_step) if beta is None else beta
