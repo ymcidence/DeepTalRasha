@@ -17,6 +17,7 @@ class _DefaultMNISTNet(keras.layers.Layer):
     A diffusion-only MNIST network, modelling p(x(t-1)|x(t)).
 
     """
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -43,6 +44,7 @@ class _DefaultMNISTNet(keras.layers.Layer):
 
         """
         x = self.fc_i
+        s = 0
 
 
 class BasicDiffusion(keras.Model):
