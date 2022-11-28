@@ -13,7 +13,7 @@ def make_training_folder(root_path, l1_name, l2_name=''):
             Hence, different runs/configurations can be compared under the same l1 folder.
 
     Returns:
-        A tensorflow summary writer that points to the *summary_path*.
+        a summary_path for tensorboard logging and a save_path for model saving
     """
 
     time_string = strftime("%a%d%b%Y-%H%M%S", gmtime())
@@ -27,5 +27,4 @@ def make_training_folder(root_path, l1_name, l2_name=''):
     if not os.path.exists(save_path):
         os.makedirs(save_path)
 
-    writer = tf.summary.create_file_writer(summary_path)
-    return writer
+    return summary_path, save_path

@@ -134,8 +134,7 @@ class BasicDiffusion(keras.Model):
 
         elbo = tf.reduce_sum(tf.pow(eps - eps_theta, 2), axis=-1)
 
-        self.add_loss(tf.reduce_mean(elbo))
-        return elbo
+        return tf.reduce_mean(elbo)
 
     def call_sample(self, x):
         batch_shape = tf.shape(x)
@@ -168,7 +167,6 @@ class BasicDiffusion(keras.Model):
             return elbo
         else:
             return self.call_sample(inputs)
-
 
 # if __name__ == '__main__':
 #     m = BasicDiffusion(100)
