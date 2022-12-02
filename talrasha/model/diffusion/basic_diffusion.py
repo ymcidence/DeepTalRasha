@@ -30,14 +30,30 @@ class _DefaultMNISTNet(keras.layers.Layer):
         super().__init__(**kwargs)
         self.total_step = total_step
 
-        self.fc_t = keras.layers.Dense(512, activation=tf.nn.swish)
-        self.fc_i = keras.layers.Dense(512, activation=tf.nn.swish)
+        self.fc_t = keras.Sequential([
+            keras.layers.Dense(28 * 28),
+            keras.layers.LeakyReLU(.1)
+        ])
+        self.fc_i = keras.Sequential([
+            keras.layers.Dense(28 * 28),
+            keras.layers.LeakyReLU(.1)
+        ])
+        self.norm_0 = keras.layers.LayerNormalization()
 
-        self.net = keras.Sequential([
-            keras.layers.LayerNormalization(),
-            keras.layers.Dense(28 * 28, activation=tf.nn.swish),
-            keras.layers.LayerNormalization(),
+        self.fc_2 = self.fc(512)
+        self.fc_3 = self.fc(256)
+        self.fc_4 = self.fc(512)
+        self.fc_5 = keras.Sequential([
             keras.layers.Dense(28 * 28)
+        ])
+
+
+    @staticmethod
+    def fc(d_model):
+        return keras.Sequential([
+            keras.layers.Dense(d_model),
+            keras.layers.LayerNormalization(),
+            keras.layers.LeakyReLU(.1)
         ])
 
     # noinspection PyMethodOverriding
@@ -55,12 +71,12 @@ class _DefaultMNISTNet(keras.layers.Layer):
 
         """
         x = self.fc_i(x, training=training)
-        s = sinusoidal_encoding(t, 512, total_step=self.total_step)
+        s = sinusoidal_encoding(t, 512, total_step=self.total_step * 2)
         s = self.fc_t(s, training=training)
 
-        mixed = x + s
+        x_0 = self.norm(x + s, training=training)
 
-        rslt = self.net(mixed, training=True)
+        rslt = self.net(mixed, training=training)
 
         return rslt
 
@@ -92,24 +108,41 @@ class BasicDiffusion(keras.Model):
         self.backbone = _DefaultMNISTNet(total_step=total_step) if backbone is None else backbone
 
     def _alpha_beta(self, beta):
+        beta_64 = tf.cast(beta, tf.float64)
+        alpha_64 = 1 - beta_64
+
+        alpha_bar_64 = tf.math.cumprod(alpha_64)
+
+        shifted_64 = tf.concat([tf.constant([1], tf.float64), alpha_bar_64[:-1]], axis=0)
+        ratio_64 = (1 - shifted_64) / (1 - alpha_bar_64)
+
+        sigma_sqr_64 = ratio_64 * beta_64
+
         self.beta = tf.cast(beta, tf.float32)
-        self.alpha = 1 - self.beta
+        self.alpha = tf.cast(alpha_64, tf.float32)
+        self.alpha_bar = tf.cast(alpha_bar_64, tf.float32)
+        self.shifted = tf.cast(shifted_64, tf.float32)
+        self.sigma = tf.cast(tf.sqrt(sigma_sqr_64), tf.float32)
 
-        repeat_alpha = tf.tile(self.alpha[tf.newaxis, :], [self.total_step, 1])
-        repeat_alpha = tf.linalg.band_part(repeat_alpha, -1, 0)
+    @staticmethod
+    def _get_value(source, t, data_dim: int = 1):
+        """
+        Get the coefficients from source indexed by t
 
-        ones = tf.ones([self.total_step, self.total_step])
-        eye = tf.eye(self.total_step)
+        Args:
+            source: [T]
+            t: [N]
+            data_dim: The dimensionality of the data, e.g., 1 for vectors and 3 for
+                image feature maps.
 
-        mask = tf.linalg.band_part(ones, 0, -1) - eye
+        Returns:
+            the values with shape [N, 1... of data_dim]
+        """
+        v = tf.gather(source, indices=t)
+        for _ in range(data_dim):
+            v = v[..., tf.newaxis]
 
-        self.alpha_bar = tf.reduce_prod(repeat_alpha + mask, axis=-1)
-
-        shifted = tf.concat([tf.constant([1], tf.float32), self.alpha_bar[:-1]], axis=0)
-        ratio = (1 - shifted) / (1 - self.alpha_bar)
-
-        sigma_sqr = ratio * self.beta
-        self.sigma = tf.sqrt(sigma_sqr)
+        return v
 
     def call_train(self, x, t):
         """
@@ -125,30 +158,42 @@ class BasicDiffusion(keras.Model):
 
         eps = tf.random.normal(tf.shape(x))  # [N D]
 
-        batch_alpha_bar = tf.sqrt(tf.gather(self.alpha_bar, indices=t))  # [N]
-        a1 = tf.sqrt(batch_alpha_bar)[:, tf.newaxis]  # [N 1]
-        a2 = tf.sqrt(1 - batch_alpha_bar)[:, tf.newaxis]  # [N 1]
+        batch_alpha_bar = self._get_value(self.alpha_bar, t, data_dim=len(tf.shape(x)) - 1)  # [N]
+        a1 = tf.sqrt(batch_alpha_bar)
+        a2 = tf.sqrt(1 - batch_alpha_bar)
 
         x_in = a1 * x + a2 * eps
         eps_theta = self.backbone(x_in, t, training=True)  # [N D]
 
-        elbo = tf.reduce_sum(tf.pow(eps - eps_theta, 2), axis=-1)
+        vlb = tf.reduce_sum(tf.pow(eps - eps_theta, 2), axis=list(range(1, len(x.shape))))
 
-        return tf.reduce_mean(elbo)
+        return tf.reduce_mean(vlb)
+
+    def single_sample(self, x, t, batch_shape):
+        z = tf.random.normal(batch_shape)
+        t = tf.ones([batch_shape[0]], dtype=tf.int32) * t
+
+        eps_pred = tf.clip_by_value(self.backbone(x, t, training=False), -1, 1)
+
+        alpha_bar = self._get_value(self.alpha_bar, t, data_dim=len(batch_shape) - 1)
+        shifted = self._get_value(self.shifted, t, data_dim=len(batch_shape) - 1)
+        beta = self._get_value(self.beta, t, data_dim=len(batch_shape) - 1)
+        sigma = self._get_value(self.sigma, t, data_dim=len(batch_shape) - 1)
+
+        x_0_pred = x / tf.sqrt(alpha_bar) - eps_pred * tf.sqrt(1. / alpha_bar - 1.)
+
+        x_mean = x_0_pred * beta * tf.sqrt(shifted) / (1 - alpha_bar) + tf.sqrt(1 - beta) * x * (1 - shifted) / (
+                1 - alpha_bar)
+
+        x = x_mean + sigma * z
+
+        return x, sigma
 
     def call_sample(self, x):
         batch_shape = tf.shape(x)
-        batch_size = batch_shape[0]
         rslt = [x]
         for i in range(self.total_step - 1, -1, -1):
-            z = tf.random.normal(batch_shape)
-            t = tf.ones([batch_size], dtype=tf.int32) * i
-            sigma = self.sigma[i]
-            alpha = self.alpha[i]
-            alpha_bar = self.alpha_bar[i]
-            ratio = (1 - alpha_bar) / tf.sqrt(1 - alpha_bar)
-            x = 1 / tf.sqrt(alpha) * (x - ratio * self.backbone(x, t, training=False)) + sigma * z
-
+            x, sigma = self.single_sample(x, i, batch_shape)
             if i == self.total_step // 2:
                 rslt.append(tf.identity(x))
 
@@ -161,10 +206,10 @@ class BasicDiffusion(keras.Model):
         if training:
             batch_size = tf.shape(inputs)[0]
             t = tf.random.uniform(shape=[batch_size], minval=0, maxval=self.total_step - 1, dtype=tf.int32)
-            elbo = self.call_train(inputs, t)
+            vlb = self.call_train(inputs, t)
             if step >= 0:
-                tf.summary.scalar('train/elbo', elbo, step=step)
-            return elbo
+                tf.summary.scalar('train/vlb', vlb, step=step)
+            return vlb
         else:
             return self.call_sample(inputs)
 

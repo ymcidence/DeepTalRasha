@@ -7,7 +7,7 @@ from typing import List
 AUTOTUNE = tf.data.experimental.AUTOTUNE
 
 
-def get_toy_data(set_name: str, batch_size: int, data_dir=None, shuffle_buffer=30000, map_function=None) -> List[
+def get_toy_data(set_name: str, batch_size: int, data_dir=None, shuffle_buffer=50000, map_function=None) -> List[
     tf.data.Dataset]:
     """
 
