@@ -40,13 +40,13 @@ class _DefaultMNISTNet(keras.layers.Layer):
         ])
         self.norm_0 = keras.layers.LayerNormalization()
 
-        self.fc_2 = self.fc(512)
-        self.fc_3 = self.fc(256)
-        self.fc_4 = self.fc(512)
+        self.fc_1 = self.fc(512)
+        self.fc_2 = self.fc(256)
+        self.fc_3 = self.fc(512)
+        self.fc_4 = self.fc(28 * 28)
         self.fc_5 = keras.Sequential([
             keras.layers.Dense(28 * 28)
         ])
-
 
     @staticmethod
     def fc(d_model):
@@ -74,11 +74,14 @@ class _DefaultMNISTNet(keras.layers.Layer):
         s = sinusoidal_encoding(t, 512, total_step=self.total_step * 2)
         s = self.fc_t(s, training=training)
 
-        x_0 = self.norm(x + s, training=training)
+        x_0 = self.norm_0(x + s, training=training)
+        x_1 = self.fc_1(x_0, training=training)
+        x_2 = self.fc_2(x_1, training=training)
+        x_3 = self.fc_3(x_2, training=training)
+        x_4 = self.fc_4(x_1 + x_3, training=training)
+        x_5 = self.fc_5(x_4 + x_0, training=training)
 
-        rslt = self.net(mixed, training=training)
-
-        return rslt
+        return x_5
 
 
 class BasicDiffusion(keras.Model):
