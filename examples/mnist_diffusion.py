@@ -17,7 +17,7 @@ ROOT_PATH = os.path.abspath(__file__)[:os.path.abspath(__file__).rfind(os.path.s
 
 
 def train_step(model: keras.Model, batch, opt: keras.optimizers.Optimizer, step):
-    feat = batch['feat'] * 2 - 1.  # [-1, 1] normalization
+    feat = batch['feat']
     with tf.GradientTape() as tape:
         elbo = model(feat, training=True, step=step)
 
@@ -39,9 +39,15 @@ def test_step(model: keras.Model, step):
     tf.summary.image('test/img', img, step=step)
 
 
+def _map(x):
+    _flip = tf.image.random_flip_left_right(x['image'])
+    x['feat'] = 2 * tf.cast(tf.reshape(_flip, [-1]), dtype=tf.float32) / 255. -1
+    return x
+
+
 def main():
     model = tr.model.BasicDiffusion(200)
-    mnist = tr.util.get_toy_data('mnist', 64)[0]
+    mnist = tr.util.get_toy_data('mnist', 64, map_function=_map)[0]
     opt = keras.optimizers.Adam(5e-4)
     summary_path, save_path = tr.util.make_training_folder(ROOT_PATH, 'mnist_gen', 'diffusion')
     writer = tf.summary.create_file_writer(summary_path)

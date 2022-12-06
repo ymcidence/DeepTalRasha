@@ -91,7 +91,7 @@ class BasicDiffusion(keras.Model):
 
     def __init__(self, total_step, beta: Union[Iterable, tf.Tensor, None] = None,
                  backbone: Union[keras.layers.Layer, keras.Model, None] = None,
-                 sigma_type: str = 'large',
+                 sigma_type: str = 'small',
                  *args, **kwargs):
         """
 
@@ -108,6 +108,7 @@ class BasicDiffusion(keras.Model):
         self.total_step = total_step
 
         b = np.linspace(1e-4, 0.02, total_step) if beta is None else beta
+        self.sigma_type = sigma_type
         self._alpha_beta(b)
 
         self.backbone = _DefaultMNISTNet(total_step=total_step) if backbone is None else backbone
@@ -127,7 +128,18 @@ class BasicDiffusion(keras.Model):
         self.alpha = tf.cast(alpha_64, tf.float32)
         self.alpha_bar = tf.cast(alpha_bar_64, tf.float32)
         self.shifted = tf.cast(shifted_64, tf.float32)
-        self.sigma = tf.cast(tf.sqrt(sigma_sqr_64), tf.float32)
+        if self.sigma_type == 'large':
+            self.sigma = tf.cast(tf.sqrt(sigma_sqr_64), tf.float32)
+
+            log_sigma_sqr_64 = np.log(np.append(sigma_sqr_64[1], sigma_sqr_64[1:]))
+
+        elif self.sigma_type == 'small':
+            self.sigma = tf.cast(tf.sqrt(beta_64), tf.float32)
+            log_sigma_sqr_64 = np.log(np.append(sigma_sqr_64[1], beta_64[1:]))
+        else:
+            raise NotImplementedError('variance type not supported')
+
+        self.log_sigma_sqr = tf.cast(log_sigma_sqr_64, tf.float32)
 
     @staticmethod
     def _get_value(source, t, data_dim: int = 1):
@@ -179,11 +191,16 @@ class BasicDiffusion(keras.Model):
         t = tf.ones([batch_shape[0]], dtype=tf.int32) * t
 
         eps_pred = self.backbone(x, t, training=False)
+        data_dim = len(batch_shape) - 1
 
-        alpha_bar = self._get_value(self.alpha_bar, t, data_dim=len(batch_shape) - 1)
-        shifted = self._get_value(self.shifted, t, data_dim=len(batch_shape) - 1)
-        beta = self._get_value(self.beta, t, data_dim=len(batch_shape) - 1)
-        sigma = self._get_value(self.sigma, t, data_dim=len(batch_shape) - 1)
+        alpha_bar = self._get_value(self.alpha_bar, t, data_dim=data_dim)
+        shifted = self._get_value(self.shifted, t, data_dim=data_dim)
+        beta = self._get_value(self.beta, t, data_dim=data_dim)
+        log_sigma_sqr = self._get_value(self.log_sigma_sqr, t, data_dim=data_dim)
+
+        sigma = tf.exp(log_sigma_sqr * .5)
+        mask = tf.cast(tf.equal(t, 0), tf.float32)
+        mask = tf.reshape(mask, [batch_shape[0]] + [1] * data_dim)
 
         x_0_pred = x / tf.sqrt(alpha_bar) - eps_pred * tf.sqrt(1. / alpha_bar - 1.)
         x_0_pred = tf.clip_by_value(x_0_pred, -1, 1)
@@ -191,7 +208,7 @@ class BasicDiffusion(keras.Model):
         x_mean = x_0_pred * beta * tf.sqrt(shifted) / (1 - alpha_bar) + tf.sqrt(1 - beta) * x * (1 - shifted) / (
                 1 - alpha_bar)
 
-        x = x_mean + sigma * z
+        x = x_mean + mask * sigma * z
 
         return x, sigma
 
