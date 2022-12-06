@@ -42,7 +42,7 @@ def test_step(model: keras.Model, step):
 def main():
     model = tr.model.BasicDiffusion(200)
     mnist = tr.util.get_toy_data('mnist', 64)[0]
-    opt = keras.optimizers.Adam(1e-3)
+    opt = keras.optimizers.Adam(5e-4)
     summary_path, save_path = tr.util.make_training_folder(ROOT_PATH, 'mnist_gen', 'diffusion')
     writer = tf.summary.create_file_writer(summary_path)
 

@@ -91,6 +91,7 @@ class BasicDiffusion(keras.Model):
 
     def __init__(self, total_step, beta: Union[Iterable, tf.Tensor, None] = None,
                  backbone: Union[keras.layers.Layer, keras.Model, None] = None,
+                 sigma_type: str = 'large',
                  *args, **kwargs):
         """
 
@@ -98,6 +99,7 @@ class BasicDiffusion(keras.Model):
             total_step: The total steps of a diffusion model's reverse trajectory
             beta: The diffusion rates defined by the original paper, a linspace by default.
             backbone: The callable eps_theta, a MNIST MLP by default.
+            sigma_type: 'large' (the sophisticated one) or 'small' (sigma=sqrt(beta))
             *args:
             **kwargs:
         """
@@ -176,7 +178,7 @@ class BasicDiffusion(keras.Model):
         z = tf.random.normal(batch_shape)
         t = tf.ones([batch_shape[0]], dtype=tf.int32) * t
 
-        eps_pred = tf.clip_by_value(self.backbone(x, t, training=False), -1, 1)
+        eps_pred = self.backbone(x, t, training=False)
 
         alpha_bar = self._get_value(self.alpha_bar, t, data_dim=len(batch_shape) - 1)
         shifted = self._get_value(self.shifted, t, data_dim=len(batch_shape) - 1)
@@ -184,6 +186,7 @@ class BasicDiffusion(keras.Model):
         sigma = self._get_value(self.sigma, t, data_dim=len(batch_shape) - 1)
 
         x_0_pred = x / tf.sqrt(alpha_bar) - eps_pred * tf.sqrt(1. / alpha_bar - 1.)
+        x_0_pred = tf.clip_by_value(x_0_pred, -1, 1)
 
         x_mean = x_0_pred * beta * tf.sqrt(shifted) / (1 - alpha_bar) + tf.sqrt(1 - beta) * x * (1 - shifted) / (
                 1 - alpha_bar)
