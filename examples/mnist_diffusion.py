@@ -61,7 +61,7 @@ def main():
                 if summary_step >= 0:
                     print('epoch {}, step {}, loss {}'.format(epoch, step, loss))
 
-                if step % 400 == 0:
+                if step % 1000 == 0:
                     print('testing...')
                     test_step(model, summary_step)
                     print('test finished')
