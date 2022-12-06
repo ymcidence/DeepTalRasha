@@ -40,8 +40,8 @@ def test_step(model: keras.Model, step):
 
 
 def _map(x):
-    _flip = tf.image.random_flip_left_right(x['image'])
-    x['feat'] = 2 * tf.cast(tf.reshape(_flip, [-1]), dtype=tf.float32) / 255. -1
+    img = x['image']
+    x['feat'] = 2 * tf.cast(tf.reshape(img, [-1]), dtype=tf.float32) / 255. -1
     return x
 
 
