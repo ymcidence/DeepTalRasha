@@ -14,6 +14,52 @@ if typing.TYPE_CHECKING:
 from talrasha.functional.positional_emb import sinusoidal_encoding
 
 
+class _ResBlock(keras.layers.Layer):
+    def __init__(self, channel, kernel=3, stride=1, **kwargs):
+        super().__init__(**kwargs)
+        self.channel = channel
+        self.conv_1 = keras.Sequential([
+            keras.layers.Conv2D(channel, kernel_size=kernel, strides=stride, padding='same', use_bias=False),
+            keras.layers.BatchNormalization()
+        ])
+        self.fc = keras.Sequential([
+            keras.layers.ReLU(),
+            keras.layers.Dense(channel),
+            keras.layers.BatchNormalization()
+        ])
+        self.conv_2 = keras.Sequential([
+            keras.layers.Dropout(.1),
+            keras.layers.Conv2D(channel, kernel_size=kernel, strides=1, padding='same', use_bias=False),
+            keras.layers.BatchNormalization()
+        ])
+        self.shortcut = keras.Sequential([
+            keras.layers.Conv2D(channel, kernel_size=3, strides=stride, padding='same', use_bias=False),
+            keras.layers.BatchNormalization()
+        ])
+
+    # noinspection PyMethodOverriding
+    def call(self, x, t, training=True, *args, **kwargs):
+        h = self.conv_1(x, training=training)
+        z = self.fc(t, training=training)[:, tf.newaxis, tf.newaxis, :]
+        hz = tf.nn.relu(h + z)
+        h = self.conv_2(hz, training=training)
+        s = self.shortcut(x, training=training)
+        return tf.nn.relu(h + s)
+
+
+class _UpscaleResBlock(keras.layers.Layer):
+    def __init__(self, channel, kernel=3, stride=1, **kwargs):
+        super().__init__(**kwargs)
+        self.upscale = keras.layers.UpSampling2D((2, 2), data_format='channels_last')
+        self.res_block = _ResBlock(channel, kernel=kernel, stride=stride)
+
+    # noinspection PyMethodOverriding
+    def call(self, x, h, t, training=True, *args, **kwargs):
+        x = self.upscale(x)
+        z = tf.concat([x, h], axis=-1)
+        return self.res_block(z, t, training=training)
+
+
 class _DefaultMNISTNet(keras.layers.Layer):
     """
     A diffusion-only MNIST network, modelling p(x(t-1)|x(t)) or literally eps(x_t, t)
@@ -30,30 +76,22 @@ class _DefaultMNISTNet(keras.layers.Layer):
         super().__init__(**kwargs)
         self.total_step = total_step
 
-        self.fc_t = keras.Sequential([
-            keras.layers.Dense(28 * 28),
-            keras.layers.LeakyReLU(.1)
+        self.encoder_0 = keras.Sequential([
+            keras.layers.Conv2D(16, 3, padding='same')
         ])
-        self.fc_i = keras.Sequential([
-            keras.layers.Dense(28 * 28),
-            keras.layers.LeakyReLU(.1)
-        ])
-
-        self.net = keras.Sequential([
-            self.fc(2048),
-            self.fc(2048),
-            self.fc(2048),
-            keras.layers.Dense(28 * 28)
+        self.fc_t = keras.layers.Dense(512)
+        self.fc_0 = keras.Sequential([
+            keras.layers.ReLU(),
+            keras.layers.Dense(16)
         ])
 
-    @staticmethod
-    def fc(d_model):
-        return keras.Sequential([
-            keras.layers.Dense(d_model),
-            # keras.layers.LayerNormalization(),
-            keras.layers.LeakyReLU(.1),
-            keras.layers.Dropout(.8)
-        ])
+        self.encoder_1 = _ResBlock(32, stride=2)
+        self.encoder_2 = _ResBlock(64, stride=2)
+        self.decoder_1 = _UpscaleResBlock(32)
+
+        self.decoder_0 = _UpscaleResBlock(16)
+
+        self.final = keras.layers.Conv2D(1, 3, padding='same')
 
     # noinspection PyMethodOverriding
     def call(self, x, t, training=True, *args, **kwargs):
@@ -69,14 +107,20 @@ class _DefaultMNISTNet(keras.layers.Layer):
         Returns:
 
         """
-        x = self.fc_i(x, training=training)
-        s = sinusoidal_encoding(t, 512)
+        e_0 = self.encoder_0(x, training=training)
+        s = sinusoidal_encoding(t, 128)
         s = self.fc_t(s, training=training)
 
-        x_0 = tf.concat([x, s], axis=-1)
-        rslt = self.net(x_0, training=training)
+        s_0 = self.fc_0(s, training=training)[:, tf.newaxis, tf.newaxis, :]
+        e_0 = tf.nn.relu(s_0 + e_0)
 
-        return rslt
+        e_1 = self.encoder_1(e_0, s, training=training)  # [14 14]
+        e_2 = self.encoder_2(e_1, s, training=training)  # [7 7]
+
+        d_1 = self.decoder_1(e_2, e_1, s, training=training)  # [14 14]
+        d_0 = self.decoder_0(d_1, e_0, s, training=training)  # [28 28]
+
+        return self.final(d_0, training=training)
 
 
 class BasicDiffusion(keras.Model):
@@ -231,6 +275,12 @@ class BasicDiffusion(keras.Model):
         else:
             return self.call_sample(inputs)
 
-# if __name__ == '__main__':
-#     m = BasicDiffusion(100)
-#     print(m.alpha_bar)
+
+if __name__ == '__main__':
+    m = _DefaultMNISTNet(100)
+    img = tf.zeros([1, 28, 28, 1], dtype=tf.float32)
+    t = tf.constant([4], dtype=tf.int32)
+
+    a = m(img, t)
+
+    print(a.shape)

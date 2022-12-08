@@ -31,7 +31,7 @@ def train_step(model: keras.Model, batch, opt: keras.optimizers.Optimizer, step)
 
 
 def test_step(model: keras.Model, step):
-    z = tf.random.normal(shape=[1, 28 * 28])
+    z = tf.random.normal(shape=[1, 28, 28, 1])
     img = model(z, training=False)
     img = [tf.reshape(v, [1, 28, 28, 1]) for v in img]
     tf.summary.histogram('test/gen_hist', img[2], step=step)
@@ -41,15 +41,15 @@ def test_step(model: keras.Model, step):
 
 def _map(x):
     img = x['image']
-    x['feat'] = 2 * tf.cast(tf.reshape(img, [-1]), dtype=tf.float32) / 255. -1
+    x['feat'] = 2 * tf.cast(img, dtype=tf.float32) / 255. - 1
     return x
 
 
 def main():
-    model = tr.model.BasicDiffusion(1000)
+    model = tr.model.BasicDiffusion(1000,sigma_type='large')
     mnist = tr.util.get_toy_data('mnist', 128, map_function=_map)[0]
     opt = keras.optimizers.Adam(5e-4)
-    summary_path, save_path = tr.util.make_training_folder(ROOT_PATH, 'mnist_gen', 'diffusion')
+    summary_path, save_path = tr.util.make_training_folder(ROOT_PATH, 'mnist_gen', 'diffusion_cnn_large')
     writer = tf.summary.create_file_writer(summary_path)
 
     with writer.as_default():
