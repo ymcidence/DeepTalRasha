@@ -46,8 +46,8 @@ def _map(x):
 
 
 def main():
-    model = tr.model.BasicDiffusion(200)
-    mnist = tr.util.get_toy_data('mnist', 64, map_function=_map)[0]
+    model = tr.model.BasicDiffusion(1000)
+    mnist = tr.util.get_toy_data('mnist', 128, map_function=_map)[0]
     opt = keras.optimizers.Adam(5e-4)
     summary_path, save_path = tr.util.make_training_folder(ROOT_PATH, 'mnist_gen', 'diffusion')
     writer = tf.summary.create_file_writer(summary_path)

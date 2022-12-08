@@ -40,9 +40,9 @@ class _DefaultMNISTNet(keras.layers.Layer):
         ])
 
         self.net = keras.Sequential([
-            keras.layers.LayerNormalization(),
-            self.fc(1024),
-            self.fc(1024),
+            self.fc(2048),
+            self.fc(2048),
+            self.fc(2048),
             keras.layers.Dense(28 * 28)
         ])
 
@@ -50,8 +50,9 @@ class _DefaultMNISTNet(keras.layers.Layer):
     def fc(d_model):
         return keras.Sequential([
             keras.layers.Dense(d_model),
-            keras.layers.LayerNormalization(),
-            keras.layers.LeakyReLU(.1)
+            # keras.layers.LayerNormalization(),
+            keras.layers.LeakyReLU(.1),
+            keras.layers.Dropout(.8)
         ])
 
     # noinspection PyMethodOverriding
@@ -69,10 +70,10 @@ class _DefaultMNISTNet(keras.layers.Layer):
 
         """
         x = self.fc_i(x, training=training)
-        s = sinusoidal_encoding(t, 512, total_step=self.total_step * 2)
+        s = sinusoidal_encoding(t, 512)
         s = self.fc_t(s, training=training)
 
-        x_0 = s + x
+        x_0 = tf.concat([x, s], axis=-1)
         rslt = self.net(x_0, training=training)
 
         return rslt
