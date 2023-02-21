@@ -16,7 +16,7 @@ def get_toy_data(set_name: str, batch_size: int, data_dir=None, shuffle_buffer=5
         batch_size:
         data_dir: To identify where the downloaded files would be stored.
         shuffle_buffer: shuffle buffer size
-        map_function: A map function, default to flattening + [0, 1] normalization
+        map_function: A map function applied BEFORE batching, default to flattening + [0, 1] normalization
 
     Returns:
 

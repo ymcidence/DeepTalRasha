@@ -1,5 +1,9 @@
 from .positional_emb import sinusoidal_encoding
+from .probabilistic import gaussian_kld, gaussian_prob, bernoulli_prob
 
 __all__ = [
-    'sinusoidal_encoding'
+    'sinusoidal_encoding',
+    'gaussian_kld',
+    'gaussian_prob',
+    'bernoulli_prob'
 ]
