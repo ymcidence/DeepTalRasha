@@ -5,8 +5,9 @@ import talrasha as tr
 import tensorflow as tf
 from tensorflow import keras
 import typing
-from typing import List
-import numpy as np
+
+# from typing import List
+# import numpy as np
 
 # as per the IDE resolving bug
 if typing.TYPE_CHECKING:
@@ -46,7 +47,7 @@ def _map(x):
 
 
 def main():
-    model = tr.model.BasicDiffusion(1000,sigma_type='large')
+    model = tr.model.BasicDiffusion(1000, sigma_type='large')
     mnist = tr.util.get_toy_data('mnist', 128, map_function=_map)[0]
     opt = keras.optimizers.Adam(5e-4)
     summary_path, save_path = tr.util.make_training_folder(ROOT_PATH, 'mnist_gen', 'diffusion_cnn_large')
