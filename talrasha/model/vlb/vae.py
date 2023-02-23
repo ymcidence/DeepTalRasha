@@ -23,7 +23,7 @@ class _MNISTEncoder(keras.Model):
             keras.layers.Conv2D(filters=32, kernel_size=3, strides=(2, 2), activation='relu'),
             keras.layers.Conv2D(filters=64, kernel_size=3, strides=(2, 2), activation='relu'),
             keras.layers.Flatten(),
-            keras.layers.Dense(16, activation='relu'),
+            # keras.layers.Dense(16, activation='relu'),
             keras.layers.Dense(d_model * 2),
         ])
 
