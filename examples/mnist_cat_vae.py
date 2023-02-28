@@ -67,7 +67,7 @@ def main():
 
     global_step = 0
 
-    for epoch in range(20):
+    for epoch in range(100):
         for batch in train_data:
             with writer.as_default(step=global_step):
                 record = global_step % 50 == 0
