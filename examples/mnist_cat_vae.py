@@ -17,10 +17,10 @@ if typing.TYPE_CHECKING:
 ROOT_PATH = os.path.abspath(__file__)[:os.path.abspath(__file__).rfind(os.path.sep)]
 
 
-def train_step(model: keras.Model, batch, opt: keras.optimizers.Optimizer, record=False):
+def train_step(model: keras.Model, batch, opt: keras.optimizers.Optimizer, record=False, step=0):
     feat = batch['feat']
     with tf.GradientTape() as tape:
-        x_hat, elbo = model(feat, training=True, record=record)
+        x_hat, elbo = model(feat, training=True, record=record, step=step)
         loss = model.losses[0]
 
         gradients = tape.gradient(loss, model.trainable_variables)
@@ -32,10 +32,10 @@ def train_step(model: keras.Model, batch, opt: keras.optimizers.Optimizer, recor
     return loss.numpy()
 
 
-def test_step(model: tr.model.CategoricalVAE, batch):
+def test_step(model: tr.model.CategoricalVAE, batch, step):
     feat = batch['feat']
-    x_hat, _ = model(feat, training=False, record=True)
-    x_gen = model.call_sample(batch_shape=[9, 7, 7, 10])
+    x_hat, _ = model(feat, training=False, record=True, step=step)
+    x_gen = model.call_sample(batch_shape=[9, 20, 10])
     tf.summary.image('test/recon', img_helper(x_hat[:, ...]))
     tf.summary.image('test/gen', img_helper(x_gen))
 
@@ -56,11 +56,12 @@ def _map(x):
 
 
 def main():
-    model = tr.model.CategoricalVAE(10, sample_size=1, temp=.3)
+    model = tr.model.CategoricalVAE(10, sample_size=1, temp=1.)
     train_data, test_data = tr.util.get_toy_data('mnist', 128, map_function=_map)
     test_data = train_data.repeat()
     test_iter = iter(test_data)
-    opt = keras.optimizers.Adam(1e-4)
+    lr = keras.optimizers.schedules.ExponentialDecay(1e-3, 1000, .9)
+    opt = keras.optimizers.Adam(lr)
     summary_path, save_path = tr.util.make_training_folder(ROOT_PATH, 'mnist_gen', 'cat_vae_bin2')
     writer = tf.summary.create_file_writer(summary_path)
 
@@ -70,11 +71,11 @@ def main():
         for batch in train_data:
             with writer.as_default(step=global_step):
                 record = global_step % 50 == 0
-                loss = train_step(model, batch, opt, record=record)
+                loss = train_step(model, batch, opt, record=record, step=global_step)
 
                 if global_step % 100 == 0:
                     print('epoch {}, step {}, loss {}'.format(epoch, global_step, loss))
-                    test_step(model, next(test_iter))
+                    test_step(model, next(test_iter), step=global_step)
 
             global_step += 1
 

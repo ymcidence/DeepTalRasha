@@ -20,12 +20,12 @@ class _MNISTEncoder(keras.Model):
 
         self.d_model = d_model
         self.network = keras.Sequential([
-            keras.layers.Conv2D(filters=32, kernel_size=3, strides=(2, 2), activation='relu'),
-            keras.layers.Conv2D(filters=64, kernel_size=3, strides=(2, 2), activation='relu', padding='same'),
             keras.layers.Flatten(),
             # keras.layers.Dense(16, activation='relu'),
-            keras.layers.Dense(7 * 7 * d_model),
-            keras.layers.Reshape([7, 7, d_model])
+            keras.layers.Dense(512, activation='relu'),
+            keras.layers.Dense(256, activation='relu'),
+            keras.layers.Dense(20 * d_model),
+            keras.layers.Reshape([20, d_model])
         ])
 
     def call(self, x, training=True, mask=None):
@@ -39,19 +39,18 @@ class _MNISTDecoder(keras.Model):
 
         self.network = keras.Sequential([
             keras.layers.Flatten(),
-            keras.layers.Dense(7 * 7 * 64, activation=tf.nn.relu),
-            keras.layers.Reshape([7, 7, 64]),
-            keras.layers.Conv2DTranspose(filters=64, kernel_size=3, strides=2, padding='same', activation='relu'),
-            keras.layers.Conv2DTranspose(filters=32, kernel_size=3, strides=2, padding='same', activation='relu'),
-            keras.layers.Conv2DTranspose(filters=1, kernel_size=3, strides=1, padding='same'),
+            keras.layers.Dense(256, activation=tf.nn.relu),
+            keras.layers.Dense(512, activation=tf.nn.relu),
+            keras.layers.Dense(784),
+            keras.layers.Reshape([28, 28, 1]),
         ])
 
     def call(self, x, training=True, mask=None):
         batch_shape = tf.shape(x)
-        if batch_shape.__len__() > 4:  # which means multiple samples are stacked along the 2nd axis, i.e., [N S HW C]
+        if batch_shape.__len__() > 3:  # which means multiple samples are stacked along the 2nd axis, i.e., [N S HW C]
             batch_size = batch_shape[0]
             sample_size = batch_shape[1]
-            _x = tf.reshape(x, [batch_size * sample_size, batch_shape[-3], batch_shape[-2], batch_shape[-1]])
+            _x = tf.reshape(x, [batch_size * sample_size, batch_shape[-2], batch_shape[-1]])
             net_out = self.network(_x, training=training)
 
             out_shape = tf.shape(net_out)
@@ -60,6 +59,21 @@ class _MNISTDecoder(keras.Model):
         else:
             rslt = self.network(x, training=training)
         return tf.nn.sigmoid(rslt)
+
+
+class _CustomSchedule(object):
+    def __init__(self, initial_value, anneal_rate, min_value, decay_step=1000):
+        self.initial_value = initial_value
+        self.anneal_rate = tf.constant(anneal_rate, tf.float32)
+
+        self.min_value = tf.constant(min_value, tf.float32)
+        self.decay_step = decay_step
+
+    def __call__(self, step):
+        _i = tf.cast(tf.math.floor(step / self.decay_step) * self.decay_step, tf.float32)
+        rslt = self.initial_value * tf.exp(-self.anneal_rate * _i)
+
+        return tf.maximum(rslt, self.min_value)
 
 
 class CategoricalVAE(keras.Model):
@@ -77,12 +91,14 @@ class CategoricalVAE(keras.Model):
         self.d_model = d_model
         self.sample_size = sample_size
         self.temp = temp
+        self.temp_schedule = _CustomSchedule(temp, anneal_rate=3e-5, min_value=.5)
         self.rep = GumbelReparameterization(d_model, temp=temp)
         self.likelihood = likelihood
 
-    def call(self, x, training=None, mask=None, record=False):
+    def call(self, x, training=None, mask=None, record=False, step=0):
+        _temp = self.temp_schedule(step)
         cat_logit = self.encoder(x, training=training)
-        z_sample = self.rep.call(cat_logit, sample_size=self.sample_size, stochastic=training)
+        z_sample = self.rep.call(cat_logit, sample_size=self.sample_size, stochastic=training, temp=_temp)
         likelihood_parameter = self.decoder(z_sample, training=training)
 
         if self.likelihood == 'Gaussian':
@@ -110,6 +126,7 @@ class CategoricalVAE(keras.Model):
             tf.summary.scalar(record_string + 'elbo', elbo)
             tf.summary.scalar(record_string + 'kld', kld)
             tf.summary.scalar(record_string + 'likelihood', log_pxz)
+            tf.summary.scalar(record_string + 'temp', _temp)
 
         return _mean, elbo
 
