@@ -1,5 +1,6 @@
-from .reparameterization import GaussianReparameterization
+from .reparameterization import GaussianReparameterization, GumbelReparameterization
 
 __all__ = [
-    'GaussianReparameterization'
+    'GaussianReparameterization',
+    'GumbelReparameterization'
 ]

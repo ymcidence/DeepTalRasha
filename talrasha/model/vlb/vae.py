@@ -38,11 +38,11 @@ class _MNISTDecoder(keras.Model):
         super().__init__(*args, **kwargs)
 
         self.network = keras.Sequential([
-            tf.keras.layers.Dense(units=7 * 7 * 64, activation=tf.nn.relu),
-            tf.keras.layers.Reshape(target_shape=(7, 7, 64)),
-            tf.keras.layers.Conv2DTranspose(filters=64, kernel_size=3, strides=2, padding='same', activation='relu'),
-            tf.keras.layers.Conv2DTranspose(filters=32, kernel_size=3, strides=2, padding='same', activation='relu'),
-            tf.keras.layers.Conv2DTranspose(filters=1, kernel_size=3, strides=1, padding='same'),
+            keras.layers.Dense(units=7 * 7 * 64, activation=tf.nn.relu),
+            keras.layers.Reshape(target_shape=(7, 7, 64)),
+            keras.layers.Conv2DTranspose(filters=64, kernel_size=3, strides=2, padding='same', activation='relu'),
+            keras.layers.Conv2DTranspose(filters=32, kernel_size=3, strides=2, padding='same', activation='relu'),
+            keras.layers.Conv2DTranspose(filters=1, kernel_size=3, strides=1, padding='same'),
         ])
 
     def call(self, x, training=True, mask=None):

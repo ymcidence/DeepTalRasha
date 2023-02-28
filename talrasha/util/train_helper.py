@@ -1,5 +1,5 @@
 import os
-import tensorflow as tf
+# import tensorflow as tf
 from time import gmtime, strftime
 
 
@@ -9,7 +9,7 @@ def make_training_folder(root_path, l1_name, l2_name=''):
     Args:
         root_path:
         l1_name: Level-1 experiment name, usually the task name
-        l2_name: Level-2 sub-experiment name, usually a run with a specific configuration.
+        l2_name: Level-2 sub-experiment name, usually a run/variant with a specific configuration.
             Hence, different runs/configurations can be compared under the same l1 folder.
 
     Returns:

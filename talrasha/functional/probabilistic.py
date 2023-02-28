@@ -100,6 +100,17 @@ def gaussian_prob(value: tf.Tensor, mean: tf.Tensor, log_var: tf.Tensor, logarit
 
 
 def bernoulli_prob(value: tf.Tensor, prob: tf.Tensor, logarithm=True, reduce=True):
+    """
+    To compute the probability of P(value) = B(value| prob)
+    Args:
+        value: [N ... D]
+        prob:
+        logarithm:
+        reduce:
+
+    Returns:
+
+    """
     condition = tf.shape(value).__len__() < tf.shape(prob).__len__()
 
     if condition:
@@ -119,3 +130,31 @@ def bernoulli_prob(value: tf.Tensor, prob: tf.Tensor, logarithm=True, reduce=Tru
         rslt = tf.exp(rslt)
 
     return tf.reduce_mean(rslt) if reduce else rslt
+
+
+def categorical_kld(prob_1: tf.Tensor, prob_2: Optional[tf.Tensor] = None, reduce=False):
+    """
+    The Kullback-Leibler divergence between 2 categorical distributions
+
+    When inputs are high-dim tensors, it gives the KLDs along the LAST axis.
+
+    Args:
+        prob_1: [N ... D]
+        prob_2: [N ... D] when None, prob_1 will be compared with Cat(1/D)
+        reduce: if reduce_mean is applied on the first axis
+
+    Returns:
+        The KLD
+    """
+    batch_shape = tf.shape(prob_1)
+    if prob_2 is None:
+        _const = 1 / tf.cast(batch_shape[-1], tf.float32)
+        prob_2 = tf.ones_like(prob_1, dtype=tf.float32) * _const
+
+    log_prob_2 = tf.math.log(prob_2 + OVERFLOW_MARGIN)
+    log_prob_1 = tf.math.log(prob_1 + OVERFLOW_MARGIN)
+    ce = -tf.reduce_sum(prob_1 * log_prob_2, axis=list(range(1, len(prob_1.shape))))  # [N]
+    e = -tf.reduce_sum(prob_1 * log_prob_1, axis=list(range(1, len(prob_1.shape))))  # [N]
+
+    kld = ce - e
+    return tf.reduce_mean(kld) if reduce else kld
