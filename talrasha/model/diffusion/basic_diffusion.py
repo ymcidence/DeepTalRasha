@@ -151,6 +151,7 @@ class BasicDiffusion(keras.Model):
         self._alpha_beta(b)
 
         self.backbone = _DefaultMNISTNet(total_step=total_step) if backbone is None else backbone
+        self.rng = tf.random.Generator.from_seed(0)
 
     def _alpha_beta(self, beta):
         beta_64 = tf.cast(beta, tf.float64)
@@ -212,7 +213,7 @@ class BasicDiffusion(keras.Model):
             An ELBO estimation of a sampled step t
         """
 
-        eps = tf.random.normal(tf.shape(x))  # [N D]
+        eps = self.rng.normal(tf.shape(x))  # [N D]
 
         batch_alpha_bar = self._get_value(self.alpha_bar, t, data_dim=len(tf.shape(x)) - 1)  # [N]
         a1 = tf.sqrt(batch_alpha_bar)
@@ -226,7 +227,7 @@ class BasicDiffusion(keras.Model):
         return tf.reduce_mean(vlb)
 
     def single_sample(self, x, t, batch_shape):
-        z = tf.random.normal(batch_shape)
+        z = self.rng.normal(batch_shape)
         t = tf.ones([batch_shape[0]], dtype=tf.int32) * t
 
         eps_pred = self.backbone(x, t, training=False)
@@ -267,7 +268,7 @@ class BasicDiffusion(keras.Model):
     def call(self, inputs, training=True, step=-1):
         if training:
             batch_size = tf.shape(inputs)[0]
-            t = tf.random.uniform(shape=[batch_size], minval=0, maxval=self.total_step - 1, dtype=tf.int32)
+            t = self.rng.uniform(shape=[batch_size], minval=0, maxval=self.total_step - 1, dtype=tf.int32)
             vlb = self.call_train(inputs, t)
             if step >= 0:
                 tf.summary.scalar('train/vlb', vlb, step=step)
