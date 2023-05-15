@@ -13,6 +13,29 @@ def create_look_ahead_mask(size):
     return mask
 
 
+def create_seq2seq_training_masks(inp, tar):
+    """
+    Creates the masks for training a seq2seq model according to the inputs and targets.
+
+    :param inp:
+    :param tar:
+    :return:
+    """
+
+    #
+    enc_padding_mask = create_padding_mask(inp)
+
+    #
+    #
+    dec_padding_mask = create_padding_mask(inp)
+
+    look_ahead_mask = create_look_ahead_mask(tf.shape(tar)[1])
+    dec_target_padding_mask = create_padding_mask(tar)
+    combined_mask = tf.maximum(dec_target_padding_mask, look_ahead_mask)
+
+    return enc_padding_mask, combined_mask, dec_padding_mask
+
+
 def scaled_dot_product_attention(q, k, v, mask):
     """
 
@@ -58,4 +81,3 @@ def relative_attention(q, k, v, s, mask):
     output = tf.matmul(attention_weights, v)  # (..., seq_len_q, depth_v)
 
     return output, attention_weights
-

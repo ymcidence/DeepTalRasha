@@ -127,9 +127,9 @@ def layer_function(encode, d_model, num_heads, dff, rate, att='mha', **kwargs) -
         raise NotImplementedError()
 
 
-class Encoder(keras.layers.Layer):
-    def __init__(self, num_layers, d_model, num_heads, dff, input_vocab_size,
-                 maximum_position_encoding, rate=0.1, att='mha'):
+class BasicTransformerEncoder(keras.layers.Layer):
+    def __init__(self, num_layers, d_model, num_heads, dff, input_vocab_size, maximum_position_encoding, rate=0.1,
+                 att='mha', **kwargs):
         """
 
         :param num_layers: encoder layers
@@ -141,13 +141,13 @@ class Encoder(keras.layers.Layer):
         :param rate: dropout rate (keep_prob = 1 - rate)
         :param att: type of attention
         """
-        super(Encoder, self).__init__()
 
+        super().__init__(**kwargs)
         self.d_model = d_model
         self.num_layers = num_layers
 
         self.embedding = keras.layers.Embedding(input_vocab_size, d_model)
-        self.pos_encoding = sinusoidal_encoding(maximum_position_encoding, self.d_model)
+        self.pos_encoding = sinusoidal_encoding(maximum_position_encoding, self.d_model)[tf.newaxis, ...]
 
         self.enc_layers = [
             layer_function(True, d_model, num_heads, dff, rate, att=att, max_seq=maximum_position_encoding)
@@ -172,9 +172,9 @@ class Encoder(keras.layers.Layer):
         return x  # (batch_size, input_seq_len, d_model)
 
 
-class Decoder(keras.layers.Layer):
+class BasicTransformerDecoder(keras.layers.Layer):
     def __init__(self, num_layers, d_model, num_heads, dff, target_vocab_size,
-                 maximum_position_encoding, rate=0.1, att='mha'):
+                 maximum_position_encoding, rate=0.1, att='mha', **kwargs):
         """
 
         :param num_layers: decoder layers
@@ -186,13 +186,13 @@ class Decoder(keras.layers.Layer):
         :param rate: dropout rate (keep_prob = 1 - rate)
         :param att: type of attention
         """
-        super(Decoder, self).__init__()
+        super().__init__(**kwargs)
 
         self.d_model = d_model
         self.num_layers = num_layers
 
         self.embedding = keras.layers.Embedding(target_vocab_size, d_model)
-        self.pos_encoding = sinusoidal_encoding(maximum_position_encoding, d_model)
+        self.pos_encoding = sinusoidal_encoding(maximum_position_encoding, d_model)[tf.newaxis, ...]
 
         self.dec_layers = [
             layer_function(False, d_model, num_heads, dff, rate, att=att, max_seq=maximum_position_encoding)
