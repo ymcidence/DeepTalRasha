@@ -34,7 +34,7 @@ class MultiHeadAttention(keras.layers.Layer):
         return tf.transpose(x, perm=[0, 2, 1, 3])
 
     # noinspection PyMethodOverriding
-    def call(self, v, k, q, mask):
+    def call(self, v, k, q, mask, **kwargs):
         """
 
         :param v: value
@@ -75,7 +75,7 @@ class RelativeAttention(MultiHeadAttention):
         self.max_seq = max_seq
         self.pos_emb = self.add_weight('pos_emb', shape=[self.max_seq, self.depth])
 
-    def call(self, v, k, q, mask):
+    def call(self, v, k, q, mask, **kwargs):
         """
 
         :param v: value
