@@ -124,6 +124,8 @@ class AttentiveNP(keras.Model):
 
         y_mean, y_log_var = tf.split(decoded, 2, axis=-1)
 
+        y_mean = tf.nn.sigmoid(y_mean)
+
         if target.__len__() > 1:
 
             likelihood = tf.reduce_mean(gaussian_prob(t_value, y_mean, y_log_var))
