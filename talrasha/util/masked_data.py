@@ -61,9 +61,11 @@ class MaskedMNIST(object):
             _x = tf.cast(d['feat'], tf.float32)
             _l = tf.cast(d['label'], tf.int32)
 
+            _batch_size = tf.shape(_x)[0]
+
             num_ob = self.rng.uniform(shape=(), minval=64, maxval=self.max_ob, dtype=tf.int32)
 
-            ob_pos = self.rng.uniform([self.batch_size, num_ob], 0, self.dim - 1, dtype=tf.int32)
+            ob_pos = self.rng.uniform([_batch_size, num_ob], 0, self.dim - 1, dtype=tf.int32)
             ob_pos = tf.expand_dims(ob_pos, -1)
 
             indices = gen_indices(ob_pos)
@@ -71,7 +73,7 @@ class MaskedMNIST(object):
             # ob_pos = (tf.cast(ob_pos, tf.float32) * 2. / self.dim) - 1
 
             tar_pos = tf.range(0, self.dim, dtype=tf.int32)
-            tar_pos = tf.tile(tf.expand_dims(tar_pos, axis=0), [self.batch_size, 1])
+            tar_pos = tf.tile(tf.expand_dims(tar_pos, axis=0), [_batch_size, 1])
             tar_value = _x
             rslt = [tf.squeeze(ob_pos, axis=-1), ob_value, tar_pos, tar_value, _l]
             return rslt

@@ -106,8 +106,7 @@ class AttentiveNP(keras.Model):
             t_feat_s = tf.reduce_mean(t_feat_s, axis=1)
             t_mean, t_log_var = tf.split(t_feat_s, 2, axis=-1)
 
-            kld = tf.reduce_mean(
-                tf.reduce_sum(gaussian_kld(t_mean, t_log_var, c_mean, c_log_var, reduce=False), axis=-1))
+            kld = tf.reduce_mean(gaussian_kld(t_mean, t_log_var, c_mean, c_log_var, reduce=False))
             if training:
                 z = self.rep(t_mean, t_log_var)  # [N 1 D]
             else:
@@ -127,7 +126,7 @@ class AttentiveNP(keras.Model):
 
         if target.__len__() > 1:
 
-            likelihood = tf.reduce_mean(tf.reduce_sum(gaussian_prob(t_value, y_mean, y_log_var), axis=-1))
+            likelihood = tf.reduce_mean(gaussian_prob(t_value, y_mean, y_log_var))
             elbo = likelihood - kld
 
             return y_mean, elbo
