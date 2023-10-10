@@ -1,4 +1,4 @@
-from .diffusion.basic_diffusion import BasicDiffusion
+from .diffusion.diffusion_model import DiffusionModel as BasicDiffusion
 from .vlb.vae import VanillaVAE
 from .vlb.cat_vae import CategoricalVAE
 from .gan.gan import VanillaGAN

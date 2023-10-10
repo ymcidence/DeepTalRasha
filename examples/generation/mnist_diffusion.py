@@ -20,34 +20,34 @@ ROOT_PATH = os.path.abspath(__file__)[:os.path.abspath(__file__).rfind(os.path.s
 def train_step(model: keras.Model, batch, opt: keras.optimizers.Optimizer, step):
     feat = batch['feat']
     with tf.GradientTape() as tape:
-        elbo = model(feat, training=True, step=step)
+        vlb = model(feat, training=True, step=step)
 
-        gradients = tape.gradient(elbo, model.trainable_variables)
+        gradients = tape.gradient(vlb, model.trainable_variables)
         clipped, g_norm = tf.clip_by_global_norm(gradients, 1.)
         opt.apply_gradients(zip(clipped, model.trainable_variables))
 
     if step >= 0:
         tf.summary.scalar('train/g_norm', g_norm, step=step)
-    return elbo.numpy()
+    return vlb.numpy()
 
 
 def test_step(model: keras.Model, step):
-    z = tf.random.normal(shape=[1, 28, 28, 1])
+    z = tf.random.normal(shape=[1, 32, 32, 1])
     img = model(z, training=False)
-    img = [tf.reshape(v, [1, 28, 28, 1]) for v in img]
+    img = [tf.reshape(v, [1, 32, 32, 1]) for v in img]
     tf.summary.histogram('test/gen_hist', img[2], step=step)
     img = (tf.clip_by_value(tf.concat(img, axis=2), -1, 1) + 1.) / 2.
     tf.summary.image('test/img', img, step=step)
 
 
 def _map(x):
-    img = x['image']
+    img = tf.image.resize(x['image'], [32, 32])
     x['feat'] = 2 * tf.cast(img, dtype=tf.float32) / 255. - 1
     return x
 
 
 def main():
-    model = tr.model.BasicDiffusion(1000, sigma_type='large')
+    model = tr.model.BasicDiffusion(500)
     mnist = tr.util.get_toy_data('mnist', 128, map_function=_map)[0]
     opt = keras.optimizers.Adam(5e-4)
     summary_path, save_path = tr.util.make_training_folder(ROOT_PATH, 'mnist_gen', 'diffusion_cnn_large')

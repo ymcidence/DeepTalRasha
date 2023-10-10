@@ -2,9 +2,16 @@ from .reparameterization import GaussianReparameterization, GumbelReparameteriza
 
 from .basic_transformer import BasicTransformerDecoder, BasicTransformerEncoder
 
+from .basic_attention import MultiHeadAttention, RelativeAttention
+
+from .general_layer import SiLU
+
 __all__ = [
     'GaussianReparameterization',
     'GumbelReparameterization',
     'BasicTransformerDecoder',
-    'BasicTransformerEncoder'
+    'BasicTransformerEncoder',
+    'SiLU',
+    'MultiHeadAttention',
+    'RelativeAttention'
 ]
