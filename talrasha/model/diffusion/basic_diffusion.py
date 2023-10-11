@@ -239,7 +239,7 @@ class BasicDiffusion(keras.Model):
         log_sigma_sqr = self._get_value(self.log_sigma_sqr, t, data_dim=data_dim)
 
         sigma = tf.exp(log_sigma_sqr * .5)
-        mask = tf.cast(tf.equal(t, 0), tf.float32)
+        mask = 1 - tf.cast(tf.equal(t, 0), tf.float32)
         mask = tf.reshape(mask, [batch_shape[0]] + [1] * data_dim)
 
         x_0_pred = x / tf.sqrt(alpha_bar) - eps_pred * tf.sqrt(1. / alpha_bar - 1.)
