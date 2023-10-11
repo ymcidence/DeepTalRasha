@@ -56,7 +56,7 @@ def main():
     model = tr.model.BasicDiffusion(1000, backbone=backbone)
     ds = tr.util.get_toy_data('cifar10', 64, map_function=_map)[0]
     opt = keras.optimizers.Adam(5e-4)
-    summary_path, save_path = tr.util.make_training_folder(ROOT_PATH, 'mnist_gen', 'diffusion_cnn_large')
+    summary_path, save_path = tr.util.make_training_folder(ROOT_PATH, 'mnist_gen', 'cifar')
     writer = tf.summary.create_file_writer(summary_path)
     rng = tf.random.Generator.from_seed(22)
 
