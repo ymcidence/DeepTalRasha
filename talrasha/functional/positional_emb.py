@@ -50,7 +50,7 @@ def sinusoidal_encoding(position: Union[int, Iterable], d_model, total_step=1000
 
 def tf_sinusoidal_encoding(position: tf.Tensor, d_model, total_step=10000) -> tf.Tensor:
     def get_angles(pos, i):
-        angle_rates = 1 / tf.pow(total_step, (2 * (i // 2)) / np.float32(d_model))
+        angle_rates = 1 / tf.pow(np.float32(total_step), (2 * (i // 2)) / np.float32(d_model))
         return tf.cast(pos, tf.float32) * tf.cast(angle_rates, tf.float32)
 
     p = position[..., tf.newaxis]
