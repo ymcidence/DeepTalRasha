@@ -177,6 +177,8 @@ class DiffusionModel(keras.Model):
             if t == self.total_step // 2:
                 rslt.append(tf.identity(x))
 
+        rslt.append(x)
+
         return rslt
 
     def call(self, x, training=True, mask=None, step=-1):
