@@ -46,8 +46,8 @@ def test_step(model: keras.Model, rng: tf.random.Generator, step):
 @tf.function
 def _map(x):
     # img = tf.image.resize(x['image'], [32, 32])
-    img = x['image']
-    x['feat'] = 2 * tf.cast(img, dtype=tf.float32) / 255. - 1
+    # img =
+    x['feat'] = 2 * tf.cast(x['image'], dtype=tf.float32) / 255. - 1
     return x
 
 
