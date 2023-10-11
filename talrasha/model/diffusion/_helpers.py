@@ -20,6 +20,7 @@ class _ConvBlock(keras.Model):
         self.conv = keras.layers.Conv2D(d_model, kernel_size=3, padding='SAME')
         self.bn = keras.layers.BatchNormalization()
         self.activation = SiLU()
+        self.dropout = keras.layers.Dropout(.1)
 
     def call(self, x, training=None, mask=None, beta=None, gamma=None):
         x = self.conv(x, training=training)
@@ -27,7 +28,7 @@ class _ConvBlock(keras.Model):
         if beta is not None and gamma is not None:
             x = x * (gamma + 1) + beta
 
-        return self.activation(x)
+        return self.dropout(self.activation(x))
 
 
 class _ResBlock(keras.Model):
