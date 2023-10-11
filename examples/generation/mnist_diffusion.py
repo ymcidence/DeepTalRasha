@@ -5,6 +5,7 @@ import talrasha as tr
 import tensorflow as tf
 from tensorflow import keras
 import typing
+from talrasha.model.diffusion._helpers import _UNet
 
 # from typing import List
 # import numpy as np
@@ -47,7 +48,8 @@ def _map(x):
 
 
 def main():
-    model = tr.model.BasicDiffusion(500)
+    backbone = _UNet(channel=1)
+    model = tr.model.BasicDiffusion(500, backbone=backbone)
     mnist = tr.util.get_toy_data('mnist', 128, map_function=_map)[0]
     opt = keras.optimizers.Adam(5e-4)
     summary_path, save_path = tr.util.make_training_folder(ROOT_PATH, 'mnist_gen', 'diffusion_cnn_large')
