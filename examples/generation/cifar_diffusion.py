@@ -43,7 +43,7 @@ def test_step(model: keras.Model, rng: tf.random.Generator, step):
     tf.summary.image('test/img', img, max_outputs=2, step=step)
 
 
-@tf.function
+# @tf.function
 def _map(x):
     # img = tf.image.resize(x['image'], [32, 32])
     # img =
