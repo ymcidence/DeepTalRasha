@@ -32,8 +32,8 @@ def train_step(model: keras.Model, batch, opt: keras.optimizers.Optimizer, step)
     return vlb.numpy()
 
 
-def test_step(model: keras.Model, step):
-    z = tf.random.normal(shape=[1, 32, 32, 1])
+def test_step(model: keras.Model, rng: tf.random.Generator, step):
+    z = rng.normal(shape=[1, 32, 32, 1])
     img = model(z, training=False)
     img = [tf.reshape(v, [1, 32, 32, 1]) for v in img]
     tf.summary.histogram('test/gen_hist', img[2], step=step)
@@ -55,6 +55,7 @@ def main():
     opt = keras.optimizers.Adam(5e-4)
     summary_path, save_path = tr.util.make_training_folder(ROOT_PATH, 'mnist_gen', 'diffusion_cnn_large')
     writer = tf.summary.create_file_writer(summary_path)
+    rng = tf.random.Generator.from_seed(22)
 
     with writer.as_default():
         step = 0
@@ -67,7 +68,7 @@ def main():
 
                 if step % 1000 == 0:
                     print('testing...')
-                    test_step(model, summary_step)
+                    test_step(model, rng, summary_step)
                     print('test finished')
                 step += 1
 
