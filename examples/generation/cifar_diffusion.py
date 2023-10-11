@@ -18,7 +18,7 @@ if typing.TYPE_CHECKING:
 ROOT_PATH = os.path.abspath(__file__)[:os.path.abspath(__file__).rfind(os.path.sep)]
 
 
-@tf.function
+# @tf.function
 def train_step(model: keras.Model, batch, opt: keras.optimizers.Optimizer, step):
     feat = batch['feat']
     with tf.GradientTape() as tape:
@@ -33,7 +33,7 @@ def train_step(model: keras.Model, batch, opt: keras.optimizers.Optimizer, step)
     return vlb.numpy()
 
 
-@tf.function
+# @tf.function
 def test_step(model: keras.Model, rng: tf.random.Generator, step):
     z = rng.normal(shape=[2, 32, 32, 3])
     img = model(z, training=False)
