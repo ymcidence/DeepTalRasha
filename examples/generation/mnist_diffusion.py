@@ -33,9 +33,9 @@ def train_step(model: keras.Model, batch, opt: keras.optimizers.Optimizer, step)
 
 
 def test_step(model: keras.Model, step):
-    z = tf.random.normal(shape=[1, 32, 32, 1])
+    z = tf.random.normal(shape=[2, 32, 32, 1])
     img = model(z, training=False)
-    img = [tf.reshape(v, [1, 32, 32, 1]) for v in img]
+    img = [tf.reshape(v, [2, 32, 32, 1]) for v in img]
     tf.summary.histogram('test/gen_hist', img[2], step=step)
     img = (tf.clip_by_value(tf.concat(img, axis=2), -1, 1) + 1.) / 2.
     tf.summary.image('test/img', img, step=step)

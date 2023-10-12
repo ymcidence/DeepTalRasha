@@ -18,17 +18,17 @@ class _ConvBlock(keras.Model):
     def __init__(self, d_model, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.conv = keras.layers.Conv2D(d_model, kernel_size=3, padding='SAME')
-        self.bn = keras.layers.BatchNormalization()
+        self.ln = keras.layers.LayerNormalization()
         self.activation = SiLU()
-        self.dropout = keras.layers.Dropout(.1)
 
     def call(self, x, training=None, mask=None, beta=None, gamma=None):
         x = self.conv(x, training=training)
-        x = self.activation(x)
+        # x = self.activation(x)
         if beta is not None and gamma is not None:
             x = x * (gamma + 1) + beta
+        x = self.ln(x, training=training)
 
-        return self.dropout(self.activation(x))
+        return self.activation(x)
 
 
 class _ResBlock(keras.Model):
@@ -51,6 +51,9 @@ class _ResBlock(keras.Model):
         self.conv1 = _ConvBlock(d_model)
         self.conv2 = _ConvBlock(d_model)
         self.conv3 = keras.layers.Dense(d_model) if d_in != d_model else lambda x, training: x
+        self.dropout = keras.layers.Dropout(.1)
+        self.ln = keras.layers.LayerNormalization()
+        self.activation = SiLU()
 
     def call(self, inputs, time_emb=None, training=None, mask=None):
         if self.mlp is not None:
@@ -61,10 +64,14 @@ class _ResBlock(keras.Model):
         else:
             beta = gamma = None
 
-        z = self.conv1(inputs, training=training, gamma=gamma, beta=beta)
+        z = self.activation(self.ln(inputs))
+        z = self.conv1(z, training=training, gamma=gamma, beta=beta)
+        z = self.dropout(z)
         z = self.conv2(z, training=training)
 
-        return z + self.conv3(z, training=training)
+        res = z + self.conv3(inputs, training=training)
+
+        return res
 
 
 class _Attention(keras.Model):
@@ -176,6 +183,8 @@ class _UNet(keras.Model):
 
             self.d_output = d_output if d_output is not None else channel * (2 if trainable_variance else 1)
             self.conv_final = keras.Sequential([_ResBlock(d_model * 2, d_model),
+                                                keras.layers.LayerNormalization(),
+                                                SiLU(),
                                                 keras.layers.Conv2D(self.d_output, 1)])
 
     def _encoding_call(self, x, t, training):
