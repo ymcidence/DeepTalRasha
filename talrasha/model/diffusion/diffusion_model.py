@@ -88,8 +88,8 @@ class DiffusionModel(keras.Model):
         batch_alpha_bar = self._get_value(self.alpha_bar, t, num_dim=len(tf.shape(x)) - 1)  # [N ... 1]
         batch_one_minus = 1. - batch_alpha_bar
 
-        a1 = tf.sqrt(batch_alpha_bar)
-        a2 = tf.sqrt(batch_one_minus)
+        a1 = tf.sqrt(tf.maximum(batch_alpha_bar, 0))
+        a2 = tf.sqrt(tf.maximum(batch_one_minus, 0))
 
         net_input = a1 * x + a2 * eps
 
@@ -161,8 +161,8 @@ class DiffusionModel(keras.Model):
         beta = take(self.beta)
         shifted = take(self.shifted)
         log_sigma_sqr = take(self.log_sigma_sqr)
-        k_2 = beta * tf.sqrt(shifted) / (1. - alpha_bar)
-        k_3 = (1 - shifted) * tf.sqrt(alpha) / (1. - alpha_bar)
+        k_2 = beta * tf.sqrt(shifted) / (1. - alpha_bar + 1e-9)
+        k_3 = (1 - shifted) * tf.sqrt(alpha) / (1. - alpha_bar + 1e-9)
         k_4 = tf.exp(log_sigma_sqr * .5)
 
         x_prev = k_2 * x_0 + k_3 * x_t + k_4 * z
