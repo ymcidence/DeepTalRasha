@@ -18,6 +18,7 @@ if typing.TYPE_CHECKING:
 ROOT_PATH = os.path.abspath(__file__)[:os.path.abspath(__file__).rfind(os.path.sep)]
 
 
+# @tf.function
 def train_step(model: keras.Model, batch, opt: keras.optimizers.Optimizer, step):
     feat = batch['feat']
     with tf.GradientTape() as tape:
@@ -32,33 +33,37 @@ def train_step(model: keras.Model, batch, opt: keras.optimizers.Optimizer, step)
     return vlb.numpy()
 
 
-def test_step(model: keras.Model, step):
-    z = tf.random.normal(shape=[2, 32, 32, 1])
+# @tf.function
+def test_step(model: keras.Model, rng: tf.random.Generator, step):
+    z = rng.normal(shape=[2, 32, 32, 3])
     img = model(z, training=False)
-    img = [tf.reshape(v, [2, 32, 32, 1]) for v in img]
-    tf.summary.histogram('test/gen_hist', img[2], step=step)
+    img = [tf.reshape(v, [2, 32, 32, 3]) for v in img]
+    # tf.summary.histogram('test/gen_hist', img[2], step=step)
     img = (tf.clip_by_value(tf.concat(img, axis=2), -1, 1) + 1.) / 2.
-    tf.summary.image('test/img', img, step=step)
+    tf.summary.image('test/img', img, max_outputs=2, step=step)
 
 
+# @tf.function
 def _map(x):
-    img = tf.image.resize(x['image'], [32, 32])
-    x['feat'] = 2 * tf.cast(img, dtype=tf.float32) / 255. - 1
+    # img = tf.image.resize(x['image'], [32, 32])
+    # img =
+    x['feat'] = 2 * tf.cast(x['image'], dtype=tf.float32) / 255. - 1
     return x
 
 
 def main():
-    backbone = _UNet(channel=1)
-    model = tr.model.BasicDiffusion(200, backbone=backbone)
-    mnist = tr.util.get_toy_data('mnist', 128, map_function=_map)[0]
+    backbone = _UNet(channel=3)
+    model = tr.model.BasicDiffusion(1000, backbone=backbone)
+    ds = tr.util.get_toy_data('cifar10', 128, map_function=_map)[0]
     opt = keras.optimizers.Adam(5e-4)
-    summary_path, save_path = tr.util.make_training_folder(ROOT_PATH, 'mnist_gen', 'diffusion_cnn_large')
+    summary_path, save_path = tr.util.make_training_folder(ROOT_PATH, 'cifar_gen', 'diffusion')
     writer = tf.summary.create_file_writer(summary_path)
+    rng = tf.random.Generator.from_seed(22)
 
     with writer.as_default():
         step = 0
-        for epoch in range(100):
-            for batch in mnist:
+        for epoch in range(500):
+            for batch in ds:
                 summary_step = step if step % 200 == 0 else -1
                 loss = train_step(model, batch, opt, summary_step)
                 if summary_step >= 0:
@@ -66,7 +71,7 @@ def main():
 
                 if step % 1000 == 0:
                     print('testing...')
-                    test_step(model, summary_step)
+                    test_step(model, rng, summary_step)
                     print('test finished')
                 step += 1
 

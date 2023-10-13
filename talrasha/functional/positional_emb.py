@@ -50,13 +50,13 @@ def sinusoidal_encoding(position: Union[int, Iterable], d_model, total_step=1000
 
 def tf_sinusoidal_encoding(position: tf.Tensor, d_model, total_step=10000) -> tf.Tensor:
     def get_angles(pos, i):
-        angle_rates = 1 / tf.pow(total_step, (2 * (i // 2)) / np.float32(d_model))
+        angle_rates = 1 / tf.pow(np.float32(total_step), (2 * (i // 2)) / np.float32(d_model))
         return tf.cast(pos, tf.float32) * tf.cast(angle_rates, tf.float32)
 
     p = position[..., tf.newaxis]
 
-    even_rad = get_angles(p, tf.range(0, d_model, 2)[tf.newaxis, :])
-    odd_rad = get_angles(p, tf.range(1, d_model, 2)[tf.newaxis, :])
+    even_rad = get_angles(p, tf.range(0, d_model, 2, dtype=tf.float32)[tf.newaxis, :])
+    odd_rad = get_angles(p, tf.range(1, d_model, 2, dtype=tf.float32)[tf.newaxis, :])
 
     even_rad = tf.sin(even_rad)
     odd_rad = tf.cos(odd_rad)
