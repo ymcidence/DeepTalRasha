@@ -26,7 +26,7 @@ def train_step(model: keras.Model, batch, opt: keras.optimizers.Optimizer, step)
 
         gradients = tape.gradient(vlb, model.trainable_variables)
         clipped, g_norm = tf.clip_by_global_norm(gradients, 1.)
-        opt.apply_gradients(zip(gradients, model.trainable_variables))
+        opt.apply_gradients(zip(clipped, model.trainable_variables))
 
     if step >= 0:
         tf.summary.scalar('train/g_norm', g_norm, step=step)
