@@ -59,6 +59,12 @@ class _MNISTDecoder(keras.Model):
 
 
 class WAEWithMMD(keras.Model):
+    """
+    This is the implementation of [Wasserstein Auto-Encoders](https://arxiv.org/abs/1711.01558).
+
+    We only show the case of an MMD regularization in the middle.
+
+    """
     def __init__(self,
                  d_model: int,
                  encoder: Optional[keras.Model] = None,
@@ -66,6 +72,16 @@ class WAEWithMMD(keras.Model):
                  rkhs='imq',
                  mmd_weight=10.,
                  *args, **kwargs):
+        """
+
+        :param d_model: the LAST dimension of the latent space
+        :param encoder:
+        :param decoder:
+        :param rkhs: the kernel name
+        :param mmd_weight: the weight of the MMD term in the final loss
+        :param args:
+        :param kwargs:
+        """
         super().__init__(*args, **kwargs)
 
         self.encoder = encoder if encoder is not None else _MNISTEncoder(d_model)

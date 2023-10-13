@@ -62,6 +62,12 @@ class _MNISTDecoder(keras.Model):
 
 
 class VanillaVAE(keras.Model):
+    """
+    From the paper [Auto-Encoding Variational Bayes](https://arxiv.org/abs/1312.6114).
+
+    This implementation only considers the case of a Gaussian prior.
+
+    """
     def __init__(self,
                  d_model: int,
                  sample_size=1,
@@ -69,6 +75,16 @@ class VanillaVAE(keras.Model):
                  decoder: Optional[keras.Model] = None,
                  likelihood='Bernoulli',
                  *args, **kwargs):
+        """
+
+        :param d_model: the LAST dimension of the latent space
+        :param sample_size: how many times Monte Carlo sampling is performed on z for a data point during training
+        :param encoder: a keras.Model object
+        :param decoder: a keras.Model object
+        :param likelihood: the type of p(x|z)
+        :param args:
+        :param kwargs:
+        """
         super().__init__(*args, **kwargs)
         self.encoder = encoder if encoder is not None else _MNISTEncoder(d_model)
         self.decoder = decoder if decoder is not None else _MNISTDecoder()

@@ -14,12 +14,31 @@ if typing.TYPE_CHECKING:
 
 
 class DiffusionModel(keras.Model):
+    """
+    This is implementing the (somewhat) vanilla diffusion model from the paper
+    * [Denoising Diffusion Probabilistic Models](https://arxiv.org/pdf/2006.11239.pdf)
+
+    We choose to implement the version of which the neural network reconstructs epsilon from x_t and the variations are
+    untrainable.
+
+    This module only includes the explicit DDPM sampler.
+
+    """
     def __init__(self,
                  total_step,
                  beta: Union[Iterable, tf.Tensor, None] = None,
                  backbone: Union[keras.layers.Layer, keras.Model, None] = None,
                  sigma_type: str = 'small',
                  *args, **kwargs):
+        """
+
+        :param total_step: t
+        :param beta: a list of betas. Length should be equal to `total_step`
+        :param backbone: The network. We give an implementation example of a default UNET with pre-normed attention.
+        :param sigma_type: 'small' for sigma = beta and 'large' for sigma = the complex version
+        :param args:
+        :param kwargs:
+        """
         super().__init__(*args, **kwargs)
         self.total_step = total_step
         self.rng = tf.random.Generator.from_seed(2)
